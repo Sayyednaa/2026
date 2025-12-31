@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Realistic Yearly Entry Reduction Plan</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<style>
+:root {
+  --bg:#020617; --card:#0f172a; --muted:#94a3b8;
+  --text:#e5e7eb; --accent:#38bdf8;
+  --good:#22c55e; --bad:#ef4444;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;
+  background:var(--bg);color:var(--text)
+}
+header{
+  padding:20px;border-bottom:1px solid #1f2937
+}
+h1{margin:0;font-size:20px}
+small{color:var(--muted)}
+.container{max-width:1200px;margin:auto;padding:20px}
+.month{
+  background:var(--card);border-radius:12px;
+  padding:16px;margin-bottom:20px;border:1px solid #1f2937
+}
+.month-head{
+  display:flex;justify-content:space-between;align-items:center
+}
+.badge{
+  font-size:12px;padding:4px 10px;border-radius:999px;
+  background:#020617;border:1px solid #1f2937
+}
+.week{
+  margin-top:12px;padding:10px;border-radius:10px;
+  background:#020617;border:1px dashed #1f2937
+}
+.week-title{font-size:13px;color:var(--accent);margin-bottom:6px}
+.days{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:6px
+}
+.day{
+  font-size:12px;padding:6px;border-radius:8px;
+  text-align:center;border:1px solid #1f2937
+}
+.used{background:#052e16;border-color:var(--good)}
+.sat{color:var(--bad)}
+footer{
+  text-align:center;color:var(--muted);font-size:12px;padding:20px
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>📅 Realistic Yearly Entry Reduction Plan</h1>
+  <small>Gradual • Stable • Zero by December (not forced)</small>
+</header>
+
+<div class="container" id="app"></div>
+
+<footer>
+  Designed for consistency & operational reality
+</footer>
+
+<script>
+const months = [
+ "January","February","March","April","May","June",
+ "July","August","September","October","November","December"
+];
+
+const monthTargets = [9,8,8,7,7,6,5,4,3,2,1,0];
+const weeksInMonth = [5,4,4,4,5,4,5,4,4,5,4,5];
+
+// Low → high risk
+const dayPriority = ["Tue","Wed","Mon","Thu","Fri","Sun","Sat"];
+const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+const app = document.getElementById("app");
+
+months.forEach((month,i)=>{
+  const m = document.createElement("div");
+  m.className="month";
+
+  m.innerHTML=`
+    <div class="month-head">
+      <div><strong>${month}</strong></div>
+      <div class="badge">Target: ${monthTargets[i]}</div>
+    </div>
+  `;
+
+  let remaining = monthTargets[i];
+  const weeks = weeksInMonth[i];
+
+  for(let w=1;w<=weeks;w++){
+    const target = Math.ceil(remaining/(weeks-w+1));
+    remaining -= target;
+
+    const week = document.createElement("div");
+    week.className="week";
+    week.innerHTML=`<div class="week-title">Week ${w} — ${target}</div>`;
+
+    const grid = document.createElement("div");
+    grid.className="days";
+
+    const alloc = {};
+    days.forEach(d=>alloc[d]=0);
+
+    let used=0;
+    for(const d of dayPriority){
+      if(used>=target) break;
+      alloc[d]=1; used++;
+    }
+
+    days.forEach(d=>{
+      const cell=document.createElement("div");
+      cell.className="day"+(d==="Sat"?" sat":"")+(alloc[d]?" used":"");
+      cell.textContent=`${d}: ${alloc[d]}`;
+      grid.appendChild(cell);
+    });
+
+    week.appendChild(grid);
+    m.appendChild(week);
+  }
+
+  app.appendChild(m);
+});
+</script>
+</body>
+</html>
