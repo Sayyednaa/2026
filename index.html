@@ -108,11 +108,46 @@ months.forEach((month,i)=>{
     const alloc = {};
     days.forEach(d=>alloc[d]=0);
 
-    let used=0;
-    for(const d of dayPriority){
-      if(used>=target) break;
-      alloc[d]=1; used++;
+let used = 0;
+const usedIndexes = [];
+
+// helper: check if index is at least 2 days away from all used
+function canUse(idx) {
+  return usedIndexes.every(u => Math.abs(u - idx) >= 2);
+}
+
+for (const d of dayPriority) {
+  if (used >= target) break;
+
+  const idx = days.indexOf(d);
+  if (idx === -1) continue;
+
+function canUse(idx) {
+  return usedIndexes.every(u => {
+    const direct = Math.abs(u - idx);
+    const circular = 7 - direct;
+    return Math.min(direct, circular) >= 2;
+  });
+}
+
+/*
+ Fallback (rare edge case):
+ If target couldn't be met due to spacing (e.g. very small week),
+ relax rule to 1-day gap ONLY if needed.
+*/
+if (used < target) {
+  for (const d of dayPriority) {
+    if (used >= target) break;
+    if (alloc[d]) continue;
+
+    const idx = days.indexOf(d);
+    if (usedIndexes.every(u => Math.abs(u - idx) >= 1)) {
+      alloc[d] = 1;
+      usedIndexes.push(idx);
+      used++;
     }
+  }
+}
 
     days.forEach(d=>{
       const cell=document.createElement("div");
