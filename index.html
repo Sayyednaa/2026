@@ -66,6 +66,8 @@ footer{
 </footer>
 
 <script>
+/* ===================== CONFIG ===================== */
+
 const months = [
  "January","February","March","April","May","June",
  "July","August","September","October","November","December"
@@ -80,11 +82,14 @@ const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
 const app = document.getElementById("app");
 
-months.forEach((month,i)=>{
-  const m = document.createElement("div");
-  m.className="month";
+/* ===================== LOGIC ===================== */
 
-  m.innerHTML=`
+months.forEach((month, i) => {
+
+  const m = document.createElement("div");
+  m.className = "month";
+
+  m.innerHTML = `
     <div class="month-head">
       <div><strong>${month}</strong></div>
       <div class="badge">Target: ${monthTargets[i]}</div>
@@ -94,65 +99,74 @@ months.forEach((month,i)=>{
   let remaining = monthTargets[i];
   const weeks = weeksInMonth[i];
 
-  for(let w=1;w<=weeks;w++){
-    const target = Math.ceil(remaining/(weeks-w+1));
+  for (let w = 1; w <= weeks; w++) {
+
+    const target = Math.ceil(remaining / (weeks - w + 1));
     remaining -= target;
 
     const week = document.createElement("div");
-    week.className="week";
-    week.innerHTML=`<div class="week-title">Week ${w} — ${target}</div>`;
+    week.className = "week";
+    week.innerHTML = `<div class="week-title">Week ${w} — ${target}</div>`;
 
     const grid = document.createElement("div");
-    grid.className="days";
+    grid.className = "days";
 
     const alloc = {};
-    days.forEach(d=>alloc[d]=0);
+    days.forEach(d => alloc[d] = 0);
 
-let used = 0;
-const usedIndexes = [];
+    let used = 0;
+    const usedIndexes = [];
 
-// helper: check if index is at least 2 days away from all used
-function canUse(idx) {
-  return usedIndexes.every(u => Math.abs(u - idx) >= 2);
-}
-
-for (const d of dayPriority) {
-  if (used >= target) break;
-
-  const idx = days.indexOf(d);
-  if (idx === -1) continue;
-
-function canUse(idx) {
-  return usedIndexes.every(u => {
-    const direct = Math.abs(u - idx);
-    const circular = 7 - direct;
-    return Math.min(direct, circular) >= 2;
-  });
-}
-
-/*
- Fallback (rare edge case):
- If target couldn't be met due to spacing (e.g. very small week),
- relax rule to 1-day gap ONLY if needed.
-*/
-if (used < target) {
-  for (const d of dayPriority) {
-    if (used >= target) break;
-    if (alloc[d]) continue;
-
-    const idx = days.indexOf(d);
-    if (usedIndexes.every(u => Math.abs(u - idx) >= 1)) {
-      alloc[d] = 1;
-      usedIndexes.push(idx);
-      used++;
+    // Circular week-safe spacing (Sun ↔ Mon aware)
+    function canUse(idx) {
+      return usedIndexes.every(u => {
+        const direct = Math.abs(u - idx);
+        const circular = 7 - direct;
+        return Math.min(direct, circular) >= 2;
+      });
     }
-  }
-}
 
-    days.forEach(d=>{
-      const cell=document.createElement("div");
-      cell.className="day"+(d==="Sat"?" sat":"")+(alloc[d]?" used":"");
-      cell.textContent=`${d}: ${alloc[d]}`;
+    // Primary allocation (2-day minimum gap)
+    for (const d of dayPriority) {
+      if (used >= target) break;
+
+      const idx = days.indexOf(d);
+      if (idx === -1) continue;
+
+      if (canUse(idx)) {
+        alloc[d] = 1;
+        usedIndexes.push(idx);
+        used++;
+      }
+    }
+
+    // Fallback: allow 1-day gap only if absolutely required
+    if (used < target) {
+      console.warn(`⚠️ Fallback used in ${month} week ${w}`);
+
+      for (const d of dayPriority) {
+        if (used >= target) break;
+        if (alloc[d]) continue;
+
+        const idx = days.indexOf(d);
+        if (usedIndexes.every(u => Math.abs(u - idx) >= 1)) {
+          alloc[d] = 1;
+          usedIndexes.push(idx);
+          used++;
+        }
+      }
+    }
+
+    console.log(`${month} Week ${w}`, alloc);
+
+    // Render days
+    days.forEach(d => {
+      const cell = document.createElement("div");
+      cell.className =
+        "day" +
+        (d === "Sat" ? " sat" : "") +
+        (alloc[d] ? " used" : "");
+      cell.textContent = `${d}: ${alloc[d]}`;
       grid.appendChild(cell);
     });
 
@@ -161,7 +175,7 @@ if (used < target) {
   }
 
   app.appendChild(m);
-};
+});
 </script>
 </body>
 </html>
