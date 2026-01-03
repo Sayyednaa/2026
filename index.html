@@ -2,187 +2,195 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>2026</title>
+<title>2026 Linear Entry Reduction</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <style>
-:root {
+:root{
   --bg:#020617; --card:#0f172a; --muted:#94a3b8;
   --text:#e5e7eb; --accent:#38bdf8;
   --good:#22c55e; --bad:#ef4444;
 }
 *{box-sizing:border-box}
 body{
-  margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;
-  background:var(--bg);color:var(--text)
+  margin:0;
+  font-family:system-ui,Segoe UI,Roboto,sans-serif;
+  background:var(--bg);
+  color:var(--text);
 }
 header{
-  padding:20px;border-bottom:1px solid #1f2937
+  padding:20px;
+  border-bottom:1px solid #1f2937;
 }
-h1{margin:0;font-size:20px}
-small{color:var(--muted)}
-.container{max-width:1200px;margin:auto;padding:20px}
+.container{
+  max-width:1200px;
+  margin:auto;
+  padding:20px;
+}
 .month{
-  background:var(--card);border-radius:12px;
-  padding:16px;margin-bottom:20px;border:1px solid #1f2937
+  background:var(--card);
+  border-radius:12px;
+  padding:16px;
+  margin-bottom:20px;
+  border:1px solid #1f2937;
 }
 .month-head{
-  display:flex;justify-content:space-between;align-items:center
-}
-.badge{
-  font-size:12px;padding:4px 10px;border-radius:999px;
-  background:#020617;border:1px solid #1f2937
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
 }
 .week{
-  margin-top:12px;padding:10px;border-radius:10px;
-  background:#020617;border:1px dashed #1f2937
+  margin-top:12px;
+  padding:10px;
+  border-radius:10px;
+  border:1px dashed #1f2937;
 }
-.week-title{font-size:13px;color:var(--accent);margin-bottom:6px}
+.week-title{
+  font-size:13px;
+  color:var(--accent);
+  margin-bottom:6px;
+}
 .days{
-  display:grid;grid-template-columns:repeat(7,1fr);gap:6px
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:6px;
 }
 .day{
-  font-size:12px;padding:6px;border-radius:8px;
-  text-align:center;border:1px solid #1f2937;
-  line-height:1.4
+  padding:8px;
+  border-radius:8px;
+  text-align:center;
+  border:1px solid #1f2937;
+  font-size:12px;
 }
-.used{background:#052e16;border-color:var(--good)}
+.used{
+  background:#052e16;
+  border-color:var(--good);
+}
 .sat{color:var(--bad)}
 footer{
-  text-align:center;color:var(--muted);font-size:12px;padding:20px
+  text-align:center;
+  color:var(--muted);
+  font-size:12px;
+  padding:20px;
 }
 </style>
 </head>
 
 <body>
 <header>
-  <h1>📅 Realistic Yearly Entry Reduction Plan</h1>
-  <small>Gradual • Stable • Zero by December (not forced)</small>
+  <h3>📅 Linear Entry Reduction Plan (2026)</h3>
+  <small>Single rule • Increasing gap • No forcing</small>
 </header>
 
 <div class="container" id="app"></div>
 
 <footer>
-  Designed for consistency & operational reality
+  Pure linear logic • Gap-driven reduction
 </footer>
 
 <script>
-/* ===================== CONFIG ===================== */
+/* ================= CONFIG ================= */
 
 const YEAR = 2026;
 
-const months = [
- "January","February","March","April","May","June",
- "July","August","September","October","November","December"
-];
-
-const monthTargets = [9,8,8,7,7,6,5,4,3,2,1,0];
-
-// Preferred but NOT fixed
-const weekdayPriority = [2,3,1,4,5,0,6]; // Tue→Sun (0=Sun)
+/*
+ Minimum gap function (ONLY control)
+ Slowly increases over the year
+*/
+function minGapDays(date) {
+  const month = date.getMonth(); // 0-based
+  if (month < 3) return 3;   // Jan–Mar
+  if (month < 6) return 4;   // Apr–Jun
+  if (month < 9) return 5;   // Jul–Sep
+  return 6;                  // Oct–Dec
+}
 
 const app = document.getElementById("app");
 
-/* ===================== HELPERS ===================== */
+/* ================= HELPERS ================= */
 
-function getMonthWeeks(year, monthIndex) {
-  const weeks = [];
-  let date = new Date(year, monthIndex, 1);
+function daysBetween(a, b) {
+  return Math.floor((b - a) / (1000 * 60 * 60 * 24));
+}
 
-  while (date.getMonth() === monthIndex) {
-    const week = [];
-    for (let i = 0; i < 7; i++) {
-      if (date.getMonth() === monthIndex) {
-        week.push(new Date(date));
-        date.setDate(date.getDate() + 1);
-      } else {
-        week.push(null);
-      }
-    }
-    weeks.push(week);
+/* ================= BUILD CALENDAR ================= */
+
+const calendar = [];
+let cursor = new Date(YEAR, 0, 1);
+while (cursor.getFullYear() === YEAR) {
+  calendar.push(new Date(cursor));
+  cursor.setDate(cursor.getDate() + 1);
+}
+
+/* ================= ASSIGN ENTRIES ================= */
+
+const usedSet = new Set();
+let lastUsed = null;
+
+calendar.forEach(date => {
+  const gap = minGapDays(date);
+
+  if (!lastUsed || daysBetween(lastUsed, date) >= gap) {
+    usedSet.add(date.toDateString());
+    lastUsed = date;
   }
-  return weeks;
-}
+});
 
-function canUse(idx, used) {
-  return used.every(u => {
-    const direct = Math.abs(u - idx);
-    const circular = 7 - direct;
-    return Math.min(direct, circular) >= 2;
-  });
-}
+/* ================= RENDER (weeks only UI) ================= */
 
-/* ===================== RENDER ===================== */
+let render = new Date(YEAR, 0, 1);
 
-months.forEach((month, mIndex) => {
+while (render.getFullYear() === YEAR) {
 
-  const container = document.createElement("div");
-  container.className = "month";
+  const monthIndex = render.getMonth();
+  const monthName = render.toLocaleString("en-GB", { month: "long" });
 
-  container.innerHTML = `
+  const monthBox = document.createElement("div");
+  monthBox.className = "month";
+  monthBox.innerHTML = `
     <div class="month-head">
-      <strong>${month}</strong>
-      <span class="badge">Target: ${monthTargets[mIndex]}</span>
+      <strong>${monthName}</strong>
+      <span class="badge">Gap rule active</span>
     </div>
   `;
 
-  let remaining = monthTargets[mIndex];
-  const weeks = getMonthWeeks(YEAR, mIndex);
+  while (render.getMonth() === monthIndex) {
 
-  weeks.forEach((weekDates, wIndex) => {
-
-    if (remaining <= 0) return;
-
-    const target = Math.ceil(remaining / (weeks.length - wIndex));
-    remaining -= target;
-
-    const weekDiv = document.createElement("div");
-    weekDiv.className = "week";
-    weekDiv.innerHTML = `<div class="week-title">Week ${wIndex + 1} — ${target}</div>`;
+    const week = document.createElement("div");
+    week.className = "week";
+    week.innerHTML = `<div class="week-title">Week</div>`;
 
     const grid = document.createElement("div");
     grid.className = "days";
 
-    const usedIndexes = [];
-    let used = 0;
-
-    weekdayPriority.forEach(dayIdx => {
-      if (used >= target) return;
-      if (!weekDates[dayIdx]) return;
-      if (!canUse(dayIdx, usedIndexes)) return;
-
-      usedIndexes.push(dayIdx);
-      used++;
-    });
-
-    weekDates.forEach((dateObj, idx) => {
+    for (let i = 0; i < 7; i++) {
       const cell = document.createElement("div");
-      if (!dateObj) {
-        cell.className = "day";
-        cell.textContent = "";
-      } else {
-        const usedDay = usedIndexes.includes(idx);
-        cell.className =
-          "day" +
-          (idx === 6 ? " sat" : "") +
-          (usedDay ? " used" : "");
+      cell.className = "day";
 
-        cell.textContent =
-          dateObj.toLocaleDateString("en-GB", {
-            weekday: "short",
-            day: "2-digit",
-            month: "short"
-          });
+      if (render.getMonth() === monthIndex) {
+        if (usedSet.has(render.toDateString())) {
+          cell.classList.add("used");
+        }
+        if (render.getDay() === 6) cell.classList.add("sat");
+
+        cell.textContent = render.toLocaleDateString("en-GB", {
+          weekday: "short",
+          day: "2-digit",
+          month: "short"
+        });
+
+        render.setDate(render.getDate() + 1);
       }
+
       grid.appendChild(cell);
-    });
+    }
 
-    weekDiv.appendChild(grid);
-    container.appendChild(weekDiv);
-  });
+    week.appendChild(grid);
+    monthBox.appendChild(week);
+  }
 
-  app.appendChild(container);
-});
+  app.appendChild(monthBox);
+}
 </script>
 </body>
 </html>
