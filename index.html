@@ -43,7 +43,8 @@ small{color:var(--muted)}
 }
 .day{
   font-size:12px;padding:6px;border-radius:8px;
-  text-align:center;border:1px solid #1f2937
+  text-align:center;border:1px solid #1f2937;
+  line-height:1.4
 }
 .used{background:#052e16;border-color:var(--good)}
 .sat{color:var(--bad)}
@@ -68,113 +69,119 @@ footer{
 <script>
 /* ===================== CONFIG ===================== */
 
+const YEAR = 2026;
+
 const months = [
  "January","February","March","April","May","June",
  "July","August","September","October","November","December"
 ];
 
 const monthTargets = [9,8,8,7,7,6,5,4,3,2,1,0];
-const weeksInMonth = [5,4,4,4,5,4,5,4,4,5,4,5];
 
-// Low → high risk
-const dayPriority = ["Tue","Wed","Mon","Thu","Fri","Sun","Sat"];
-const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+// Preferred but NOT fixed
+const weekdayPriority = [2,3,1,4,5,0,6]; // Tue→Sun (0=Sun)
 
 const app = document.getElementById("app");
 
-/* ===================== LOGIC ===================== */
+/* ===================== HELPERS ===================== */
 
-months.forEach((month, i) => {
+function getMonthWeeks(year, monthIndex) {
+  const weeks = [];
+  let date = new Date(year, monthIndex, 1);
 
-  const m = document.createElement("div");
-  m.className = "month";
+  while (date.getMonth() === monthIndex) {
+    const week = [];
+    for (let i = 0; i < 7; i++) {
+      if (date.getMonth() === monthIndex) {
+        week.push(new Date(date));
+        date.setDate(date.getDate() + 1);
+      } else {
+        week.push(null);
+      }
+    }
+    weeks.push(week);
+  }
+  return weeks;
+}
 
-  m.innerHTML = `
+function canUse(idx, used) {
+  return used.every(u => {
+    const direct = Math.abs(u - idx);
+    const circular = 7 - direct;
+    return Math.min(direct, circular) >= 2;
+  });
+}
+
+/* ===================== RENDER ===================== */
+
+months.forEach((month, mIndex) => {
+
+  const container = document.createElement("div");
+  container.className = "month";
+
+  container.innerHTML = `
     <div class="month-head">
-      <div><strong>${month}</strong></div>
-      <div class="badge">Target: ${monthTargets[i]}</div>
+      <strong>${month}</strong>
+      <span class="badge">Target: ${monthTargets[mIndex]}</span>
     </div>
   `;
 
-  let remaining = monthTargets[i];
-  const weeks = weeksInMonth[i];
+  let remaining = monthTargets[mIndex];
+  const weeks = getMonthWeeks(YEAR, mIndex);
 
-  for (let w = 1; w <= weeks; w++) {
+  weeks.forEach((weekDates, wIndex) => {
 
-    const target = Math.ceil(remaining / (weeks - w + 1));
+    if (remaining <= 0) return;
+
+    const target = Math.ceil(remaining / (weeks.length - wIndex));
     remaining -= target;
 
-    const week = document.createElement("div");
-    week.className = "week";
-    week.innerHTML = `<div class="week-title">Week ${w} — ${target}</div>`;
+    const weekDiv = document.createElement("div");
+    weekDiv.className = "week";
+    weekDiv.innerHTML = `<div class="week-title">Week ${wIndex + 1} — ${target}</div>`;
 
     const grid = document.createElement("div");
     grid.className = "days";
 
-    const alloc = {};
-    days.forEach(d => alloc[d] = 0);
-
-    let used = 0;
     const usedIndexes = [];
+    let used = 0;
 
-    // Circular week-safe spacing (Sun ↔ Mon aware)
-    function canUse(idx) {
-      return usedIndexes.every(u => {
-        const direct = Math.abs(u - idx);
-        const circular = 7 - direct;
-        return Math.min(direct, circular) >= 2;
-      });
-    }
+    weekdayPriority.forEach(dayIdx => {
+      if (used >= target) return;
+      if (!weekDates[dayIdx]) return;
+      if (!canUse(dayIdx, usedIndexes)) return;
 
-    // Primary allocation (2-day minimum gap)
-    for (const d of dayPriority) {
-      if (used >= target) break;
+      usedIndexes.push(dayIdx);
+      used++;
+    });
 
-      const idx = days.indexOf(d);
-      if (idx === -1) continue;
-
-      if (canUse(idx)) {
-        alloc[d] = 1;
-        usedIndexes.push(idx);
-        used++;
-      }
-    }
-
-    // Fallback: allow 1-day gap only if absolutely required
-    if (used < target) {
-      console.warn(`⚠️ Fallback used in ${month} week ${w}`);
-
-      for (const d of dayPriority) {
-        if (used >= target) break;
-        if (alloc[d]) continue;
-
-        const idx = days.indexOf(d);
-        if (usedIndexes.every(u => Math.abs(u - idx) >= 1)) {
-          alloc[d] = 1;
-          usedIndexes.push(idx);
-          used++;
-        }
-      }
-    }
-
-    console.log(`${month} Week ${w}`, alloc);
-
-    // Render days
-    days.forEach(d => {
+    weekDates.forEach((dateObj, idx) => {
       const cell = document.createElement("div");
-      cell.className =
-        "day" +
-        (d === "Sat" ? " sat" : "") +
-        (alloc[d] ? " used" : "");
-      cell.textContent = `${d}: ${alloc[d]}`;
+      if (!dateObj) {
+        cell.className = "day";
+        cell.textContent = "";
+      } else {
+        const usedDay = usedIndexes.includes(idx);
+        cell.className =
+          "day" +
+          (idx === 6 ? " sat" : "") +
+          (usedDay ? " used" : "");
+
+        cell.textContent =
+          dateObj.toLocaleDateString("en-GB", {
+            weekday: "short",
+            day: "2-digit",
+            month: "short"
+          });
+      }
       grid.appendChild(cell);
     });
 
-    week.appendChild(grid);
-    m.appendChild(week);
-  }
+    weekDiv.appendChild(grid);
+    container.appendChild(weekDiv);
+  });
 
-  app.appendChild(m);
+  app.appendChild(container);
 });
 </script>
 </body>
